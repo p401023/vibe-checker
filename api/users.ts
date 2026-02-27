@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { initDb, getActiveUsers, upsertUser } from "./_db";
-import { pusher } from "./_pusher";
+import { initDb, getActiveUsers, upsertUser } from "./_db.js";
+import { pusher } from "./_pusher.js";
 
 const STALE_THRESHOLD_MS = 10 * 60 * 1000;
 
