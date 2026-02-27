@@ -1,0 +1,13 @@
+# Turso (https://turso.tech)
+TURSO_DATABASE_URL=libsql://vibe-checker-db-ppp2329.aws-eu-west-1.turso.io
+TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzIyMzA2ODcsImlkIjoiMDE5Y2ExMjgtYjQwMS03OGQ3LWJiZDktMWFkYTdhYWMwZTMxIiwicmlkIjoiOTYyMTVkMzgtZTc1My00YjUyLWIzODQtNzZmYTM3YTQ5NGMxIn0.rVdUfoFcL_ULZzNGWeCO19ryGAnZ8j3d4inrFt8Ade_6Ch2pnM7QF4N4RGUONNSfvv7zczdVLaj4G2iGMEdkCA
+
+# Pusher (https://pusher.com) — server-side
+PUSHER_APP_ID=2121345
+PUSHER_KEY=147f86e01e457a86d5b7
+PUSHER_SECRET=2c764bde2fbd50cec5fc
+PUSHER_CLUSTER=eu
+
+# Pusher — client-side (exposed to browser via Vite)
+VITE_PUSHER_KEY=147f86e01e457a86d5b7
+VITE_PUSHER_CLUSTER=eu
