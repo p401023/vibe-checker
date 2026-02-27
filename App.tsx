@@ -21,7 +21,7 @@ interface UserRecord {
   vibe: QuadrantKey | null;
   lastSeen: number;
 }
-
+ 
 type UsersMap = Record<string, UserRecord>;
 
 // ─── Constants ──────────────────────────────────────────────────────────────
