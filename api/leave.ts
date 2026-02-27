@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db, initDb } from "./_db";
+import { initDb, deleteUser } from "./_db";
 import { pusher } from "./_pusher";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await initDb();
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: "id required" });
-    await db.execute({ sql: "DELETE FROM users WHERE id = ?", args: [id] });
+    await deleteUser(id);
     await pusher.trigger("vibe-checker", "user-removed", { id });
     return res.json({ ok: true });
   } catch (e) {

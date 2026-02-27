@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { db, initDb } from "./_db";
+import { initDb, updateLastSeen } from "./_db";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -7,10 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await initDb();
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: "id required" });
-    await db.execute({
-      sql: "UPDATE users SET last_seen = ? WHERE id = ?",
-      args: [Date.now(), id],
-    });
+    await updateLastSeen(id, Date.now());
     return res.json({ ok: true });
   } catch (e) {
     console.error("api/heartbeat error:", e);
