@@ -4,8 +4,16 @@ const dbUrl = process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://"
 const dbToken = process.env.TURSO_AUTH_TOKEN!;
 
 type SqlArg = string | number | null;
-
+type TursoValue = { type: "text"; value: string } | { type: "integer"; value: string } | { type: "real"; value: string } | { type: "null" } | { type: "blob"; base64: string };
 interface TursoRow { [col: string]: string | number | null }
+
+function unwrap(v: TursoValue): string | number | null {
+  if (v.type === "null") return null;
+  if (v.type === "integer") return Number(v.value);
+  if (v.type === "real") return Number(v.value);
+  if (v.type === "text") return v.value;
+  return null;
+}
 
 async function execute(sql: string, args: SqlArg[] = []): Promise<TursoRow[]> {
   const typedArgs = args.map((v) => {
@@ -30,13 +38,13 @@ async function execute(sql: string, args: SqlArg[] = []): Promise<TursoRow[]> {
 
   if (!res.ok) throw new Error(`Turso HTTP ${res.status}: ${await res.text()}`);
 
-  const data = await res.json() as { results: { type: string; response?: { result: { cols: { name: string }[]; rows: (string | number | null)[][] } }; error?: { message: string } }[] };
+  const data = await res.json() as { results: { type: string; response?: { result: { cols: { name: string }[]; rows: TursoValue[][] } }; error?: { message: string } }[] };
   const first = data.results[0];
   if (first.type !== "ok" || !first.response) throw new Error(`Turso error: ${first.error?.message}`);
 
   const { cols, rows } = first.response.result;
   return rows.map((row) =>
-    Object.fromEntries(cols.map((c, i) => [c.name, row[i]]))
+    Object.fromEntries(cols.map((c, i) => [c.name, unwrap(row[i])]))
   );
 }
 
