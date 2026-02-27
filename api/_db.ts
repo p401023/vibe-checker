@@ -1,10 +1,7 @@
-import { createClient } from "@libsql/client";
-
-// Force HTTPS so libsql uses HTTP rather than WebSockets — required for Vercel serverless
-const dbUrl = process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://");
+import { createClient } from "@libsql/client/http";
 
 export const db = createClient({
-  url: dbUrl,
+  url: process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://"),
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 

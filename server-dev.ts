@@ -1,5 +1,5 @@
 import express from "express";
-import { createClient } from "@libsql/client";
+import { createClient } from "@libsql/client/http";
 import Pusher from "pusher";
 import * as dotenv from "dotenv";
 
@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL!,
+  url: process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://"),
   authToken: process.env.TURSO_AUTH_TOKEN,
 });
 

@@ -180,7 +180,7 @@ export default function App(): JSX.Element {
   const fetchUsers = (): void => {
     fetch("/api/users")
       .then((r) => {
-        if (!r.ok) throw new Error(`API error: ${r.status} ${r.statusText}`);
+        if (!r.ok) return r.text().then((t) => { throw new Error(`API error: ${r.status} — ${t}`); });
         return r.json();
       })
       .then((data: UsersMap) => {
