@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, CSSProperties, FC, KeyboardEvent } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, CSSProperties, FC, KeyboardEvent } from "react";
 import Pusher from "pusher-js";
 
 const pusherClient = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
@@ -91,6 +91,34 @@ const CONTENT = {
   },
 } satisfies Record<AppMode, unknown>;
 
+// ─── LinkedIn Theme ──────────────────────────────────────────────────────────
+
+const LI_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+const LI = {
+  bg:           "#080f1a",
+  card:         "#0d1e30",
+  cardActive:   "#0a2548",
+  blue:         "#0a66c2",
+  blueGlow:     "rgba(10,102,194,0.35)",
+  gold:         "#f0b429",
+  goldGlow:     "rgba(240,180,41,0.35)",
+  text:         "#e8f0f8",
+  muted:        "#6b8aab",
+  border:       "rgba(255,255,255,0.07)",
+  borderBlue:   "rgba(10,102,194,0.5)",
+  shadow:       "0 8px 32px rgba(0,0,0,0.6)",
+  shadowBlue:   "0 0 28px rgba(10,102,194,0.3)",
+  shadowGold:   "0 0 28px rgba(240,180,41,0.3)",
+};
+
+const LI_QUADRANT: Record<QuadrantKey, { color: string; bg: string; border: string }> = {
+  "high-pleasant":   { color: "#22c55e", border: "#22c55e", bg: "radial-gradient(ellipse at 65% 30%, rgba(34,197,94,0.18) 0%, #0d1e30 70%)"  },
+  "high-unpleasant": { color: "#f97316", border: "#f97316", bg: "radial-gradient(ellipse at 35% 30%, rgba(249,115,22,0.18) 0%, #0d1e30 70%)" },
+  "low-pleasant":    { color: "#38bdf8", border: "#38bdf8", bg: "radial-gradient(ellipse at 65% 70%, rgba(56,189,248,0.14) 0%, #0d1e30 70%)"  },
+  "low-unpleasant":  { color: "#a78bfa", border: "#a78bfa", bg: "radial-gradient(ellipse at 35% 70%, rgba(167,139,250,0.14) 0%, #0d1e30 70%)" },
+};
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const QUADRANTS: Record<QuadrantKey, QuadrantConfig> = {
@@ -137,8 +165,8 @@ function getOrCreateUserId(): string {
   return id;
 }
 
-function playGunshot(): void {
-  const audio = new Audio("/gunshot.mp3");
+function playSelectSound(mode: AppMode): void {
+  const audio = new Audio(mode === "linkedin" ? "/hooray.mp3" : "/gunshot.mp3");
   audio.play();
 }
 
@@ -201,21 +229,24 @@ interface QuadrantProps {
   mode: AppMode;
 }
 
-const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick, mode }) => {
+const Quadrant: FC<QuadrantProps> = ({ quadKey, quadrant, isMine, usersHere, onClick, mode }) => {
   const isLI = mode === "linkedin";
+  const liq = LI_QUADRANT[quadKey];
   return (
     <div
       onClick={onClick}
       style={{
         ...styles.quadrant,
-        background: isLI ? "#ffffff" : quadrant.bg,
+        background: isLI ? liq.bg : quadrant.bg,
         border: isLI
-          ? (isMine ? "2px solid #0077b5" : "1px solid #dce6ef")
+          ? (isMine ? `2px solid ${LI.gold}` : `1px solid ${liq.border}44`)
           : (isMine ? `2px solid ${quadrant.border}` : "1px solid #1a2a1a"),
         boxShadow: isLI
-          ? (isMine ? "0 4px 20px rgba(0,119,181,0.18)" : "0 2px 8px rgba(0,0,0,0.06)")
+          ? (isMine
+              ? `0 0 28px rgba(240,180,41,0.35), 0 0 0 1px ${LI.gold}55, inset 0 0 40px rgba(240,180,41,0.04)`
+              : `0 0 16px rgba(0,0,0,0.5), inset 0 0 20px ${liq.border}0a`)
           : (isMine ? `0 0 30px ${quadrant.border}55, inset 0 0 30px ${quadrant.border}11` : "none"),
-        borderRadius: isLI ? "10px" : "0",
+        borderRadius: isLI ? "8px" : "0",
         cursor: "pointer",
         transition: "all 0.2s ease",
       }}
@@ -223,13 +254,16 @@ const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick, mod
       <div
         style={{
           ...styles.quadLabel,
-          color: isLI ? (isMine ? "#0077b5" : "#44546a") : quadrant.color,
-          opacity: isLI ? (isMine ? 1 : 0.65) : (isMine ? 1 : 0.35),
-          textShadow: isLI ? "none" : (isMine ? `0 0 20px ${quadrant.color}` : "none"),
-          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
-          fontWeight: isLI ? 700 : 900,
-          fontSize: isLI ? "clamp(13px, 2vw, 22px)" : undefined,
-          letterSpacing: isLI ? "0" : undefined,
+          color: isLI ? (isMine ? LI.gold : liq.color) : quadrant.color,
+          opacity: isLI ? (isMine ? 1 : 0.75) : (isMine ? 1 : 0.35),
+          textShadow: isLI
+            ? (isMine ? `0 0 30px ${LI.gold}` : `0 0 20px ${liq.color}66`)
+            : (isMine ? `0 0 20px ${quadrant.color}` : "none"),
+          fontFamily: isLI ? LI_FONT : undefined,
+          fontWeight: 900,
+          fontSize: isLI ? "clamp(15px, 2.2vw, 26px)" : undefined,
+          letterSpacing: isLI ? "-0.02em" : undefined,
+          lineHeight: isLI ? 1.05 : undefined,
         }}
       >
         {quadrant.label}
@@ -240,13 +274,15 @@ const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick, mod
           <div key={id} style={styles.avatar} title={u.name}>
             <div style={{
               ...styles.avatarDot,
-              background: isLI ? "#0077b5" : "#00ff88",
-              boxShadow: isLI ? "none" : "0 0 8px #00ff88",
+              background: isLI ? liq.color : "#00ff88",
+              boxShadow: isLI ? `0 0 6px ${liq.color}88` : "0 0 8px #00ff88",
             }} />
             <div style={{
               ...styles.avatarName,
-              color: isLI ? "#0077b5" : "#00ff88",
-              fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+              color: isLI ? liq.color : "#00ff88",
+              fontFamily: isLI ? LI_FONT : undefined,
+              fontSize: isLI ? "8px" : undefined,
+              letterSpacing: isLI ? "0.05em" : undefined,
             }}>{u.name.slice(0, 6).toUpperCase()}</div>
           </div>
         ))}
@@ -255,11 +291,16 @@ const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick, mod
       {isMine && (
         <div style={{
           ...styles.myIndicator,
-          color: isLI ? "#0077b5" : "#fff",
-          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
-          animation: isLI ? "linkedInPulse 2s infinite" : undefined,
+          color: isLI ? LI.gold : "#fff",
+          fontFamily: isLI ? LI_FONT : undefined,
+          fontWeight: isLI ? 800 : undefined,
+          fontSize: isLI ? "10px" : undefined,
+          letterSpacing: isLI ? "0.15em" : undefined,
+          background: isLI ? "rgba(240,180,41,0.12)" : "transparent",
+          borderRadius: isLI ? "4px" : "0",
+          padding: isLI ? "2px 6px" : "0",
         }}>
-          {isLI ? "✓ YOU" : "● YOU"}
+          {isLI ? "● YOU" : "● YOU"}
         </div>
       )}
     </div>
@@ -280,43 +321,44 @@ const LoginScreen: FC<LoginScreenProps> = ({ nameInput, setNameInput, onJoin, mo
   return (
     <div style={{
       ...styles.loginRoot,
-      background: isLI ? "#f3f6f8" : "#050e05",
-      fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+      background: isLI ? LI.bg : "#050e05",
+      fontFamily: isLI ? LI_FONT : undefined,
     }}>
       {!isLI && <div style={styles.scanlines} />}
       <div style={{
         ...styles.loginBox,
-        background: isLI ? "#ffffff" : "#000a00",
-        border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4444",
-        boxShadow: isLI ? "0 8px 40px rgba(0,0,0,0.12)" : "0 0 60px #00ff4422",
-        borderRadius: isLI ? "12px" : "0",
+        background: isLI ? LI.card : "#000a00",
+        border: isLI ? `1px solid ${LI.border}` : "1px solid #00ff4444",
+        boxShadow: isLI ? `${LI.shadow}, 0 0 60px ${LI.blueGlow}` : "0 0 60px #00ff4422",
+        borderRadius: isLI ? "16px" : "0",
       }}>
         {isLI && (
-          <div style={{ fontSize: "40px", marginBottom: "-8px" }}>💼</div>
+          <div style={{ fontSize: "48px", marginBottom: "-4px" }}>💼</div>
         )}
         <div style={{
           ...styles.loginTitle,
-          color: isLI ? "#0077b5" : "#00ff88",
-          textShadow: isLI ? "none" : "0 0 30px #00ff88",
-          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
-          fontWeight: isLI ? 800 : 900,
-          letterSpacing: isLI ? "-0.02em" : "0.1em",
-          fontSize: isLI ? "28px" : "36px",
+          color: isLI ? LI.gold : "#00ff88",
+          textShadow: isLI ? `0 0 40px ${LI.goldGlow}` : "0 0 30px #00ff88",
+          fontFamily: isLI ? LI_FONT : undefined,
+          fontWeight: 900,
+          letterSpacing: isLI ? "-0.03em" : "0.1em",
+          fontSize: isLI ? "32px" : "36px",
         }}>{c.appTitle}</div>
         <div style={{
           ...styles.loginSub,
-          color: isLI ? "#666" : "#00ff8866",
-          letterSpacing: isLI ? "0" : "0.3em",
-          fontSize: isLI ? "14px" : "11px",
+          color: isLI ? LI.muted : "#00ff8866",
+          letterSpacing: isLI ? "0.05em" : "0.3em",
+          fontSize: isLI ? "13px" : "11px",
+          textTransform: "uppercase",
         }}>{c.loginSub}</div>
         <input
           style={{
             ...styles.loginInput,
-            color: isLI ? "#1a1a1a" : "#00ff88",
-            borderBottom: isLI ? "2px solid #0077b5" : "1px solid #00ff8855",
-            fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
-            letterSpacing: isLI ? "0" : "0.15em",
-            fontSize: isLI ? "16px" : "18px",
+            color: isLI ? LI.text : "#00ff88",
+            borderBottom: isLI ? `2px solid ${LI.blue}` : "1px solid #00ff8855",
+            fontFamily: isLI ? LI_FONT : undefined,
+            letterSpacing: isLI ? "0.05em" : "0.15em",
+            fontSize: isLI ? "17px" : "18px",
           }}
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
@@ -327,15 +369,17 @@ const LoginScreen: FC<LoginScreenProps> = ({ nameInput, setNameInput, onJoin, mo
         />
         <button style={{
           ...styles.loginBtn,
-          background: isLI ? "#0077b5" : "transparent",
+          background: isLI ? LI.gold : "transparent",
           border: isLI ? "none" : "1px solid #00ff88",
-          color: isLI ? "#ffffff" : "#00ff88",
-          borderRadius: isLI ? "24px" : "0",
-          boxShadow: isLI ? "0 4px 16px rgba(0,119,181,0.3)" : "0 0 20px #00ff8833",
-          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
-          fontWeight: isLI ? 600 : undefined,
-          letterSpacing: isLI ? "0.05em" : "0.2em",
-          padding: isLI ? "12px 36px" : "10px 32px",
+          color: isLI ? "#080f1a" : "#00ff88",
+          borderRadius: isLI ? "6px" : "0",
+          boxShadow: isLI ? `${LI.shadowGold}` : "0 0 20px #00ff8833",
+          fontFamily: isLI ? LI_FONT : undefined,
+          fontWeight: isLI ? 800 : undefined,
+          letterSpacing: isLI ? "0.08em" : "0.2em",
+          padding: isLI ? "14px 40px" : "10px 32px",
+          fontSize: isLI ? "15px" : undefined,
+          textTransform: "uppercase",
         }} onClick={onJoin}>
           {c.joinBtn}
         </button>
@@ -385,16 +429,35 @@ export default function App(): JSX.Element {
   };
 
   const userId = useRef<string>(getOrCreateUserId());
+  const modeRef = useRef<AppMode>(mode);
+  useEffect(() => { modeRef.current = mode; }, [mode]);
   const sirenRef = useRef<HTMLAudioElement | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!contextMenu || !contextMenuRef.current) return;
+    const el = contextMenuRef.current;
+    const rect = el.getBoundingClientRect();
+    const x = Math.min(contextMenu.x, window.innerWidth - rect.width - 4);
+    const y = Math.min(contextMenu.y, window.innerHeight - rect.height - 4);
+    el.style.left = `${Math.max(4, x)}px`;
+    el.style.top = `${Math.max(4, y)}px`;
+  }, [contextMenu]);
+  const tadaRef = useRef<HTMLAudioElement | null>(null);
   const lastTapRef = useRef<{ time: number; id: string } | null>(null);
 
-  // Unlock siren audio on the first user click so it can play from Pusher events later
+  // Unlock both notification sounds on first user click (browser autoplay policy)
   useEffect(() => {
     const unlock = () => {
-      const audio = new Audio("/siren.mp3");
-      audio.loop = true;
-      audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
-      sirenRef.current = audio;
+      const siren = new Audio("/siren.mp3");
+      siren.loop = true;
+      siren.play().then(() => { siren.pause(); siren.currentTime = 0; }).catch(() => {});
+      sirenRef.current = siren;
+
+      const tada = new Audio("/tada.mp3");
+      tada.play().then(() => { tada.pause(); tada.currentTime = 0; }).catch(() => {});
+      tadaRef.current = tada;
+
       window.removeEventListener("click", unlock);
     };
     window.addEventListener("click", unlock);
@@ -460,9 +523,16 @@ export default function App(): JSX.Element {
 
     channel.bind("user-message", (data: { toId: string; fromName: string; text: string }) => {
       if (data.toId !== userId.current) return;
-      if (sirenRef.current) {
-        sirenRef.current.currentTime = 0;
-        sirenRef.current.play().catch(console.error);
+      if (modeRef.current === "linkedin") {
+        if (tadaRef.current) {
+          tadaRef.current.currentTime = 0;
+          tadaRef.current.play().catch(console.error);
+        }
+      } else {
+        if (sirenRef.current) {
+          sirenRef.current.currentTime = 0;
+          sirenRef.current.play().catch(console.error);
+        }
       }
       setIncomingMessage({ fromName: data.fromName, text: data.text });
     });
@@ -475,7 +545,7 @@ export default function App(): JSX.Element {
 
   // Sync body background to mode
   useEffect(() => {
-    document.body.style.background = mode === "linkedin" ? "#f3f6f8" : "#050e05";
+    document.body.style.background = mode === "linkedin" ? LI.bg : "#050e05";
   }, [mode]);
 
   // Heartbeat
@@ -560,7 +630,7 @@ export default function App(): JSX.Element {
 
   const handleVibeClick = (quadrant: QuadrantKey): void => {
     const newVibe: QuadrantKey | null = myVibe === quadrant ? null : quadrant;
-    if (newVibe) playGunshot();
+    if (newVibe) playSelectSound(mode);
     setMyVibe(newVibe);
     setUsers((prev) => ({
       ...prev,
@@ -581,7 +651,6 @@ export default function App(): JSX.Element {
 
   const c = CONTENT[mode];
   const isLI = mode === "linkedin";
-  const LI_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
   if (!userName) {
     return (
@@ -598,27 +667,28 @@ export default function App(): JSX.Element {
   return (
     <div style={{
       ...styles.root,
-      background: isLI ? "#f3f6f8" : "#050e05",
-      color: isLI ? "#1a1a1a" : "#00ff88",
+      background: isLI ? LI.bg : "#050e05",
+      color: isLI ? LI.text : "#00ff88",
       fontFamily: isLI ? LI_FONT : styles.root.fontFamily,
-      border: isLI ? "none" : "2px solid #00ff4422",
+      border: isLI ? `1px solid ${LI.border}` : "2px solid #00ff4422",
     }}>
       {!isLI && <div style={styles.scanlines} />}
 
       {/* Header */}
       <div style={{
         ...styles.header,
-        borderBottom: isLI ? "1px solid #dce6ef" : "none",
-        paddingBottom: isLI ? "12px" : "0",
+        borderBottom: isLI ? `1px solid ${LI.border}` : "none",
+        paddingBottom: isLI ? "14px" : "0",
         marginBottom: isLI ? "16px" : "8px",
       }}>
         <div style={{
           ...styles.title,
-          color: isLI ? "#0077b5" : "#00ff88",
-          textShadow: isLI ? "none" : "0 0 30px #00ff8888, 0 0 60px #00ff8844",
+          color: isLI ? LI.gold : "#00ff88",
+          textShadow: isLI ? `0 0 40px ${LI.goldGlow}` : "0 0 30px #00ff8888, 0 0 60px #00ff8844",
           fontFamily: isLI ? LI_FONT : styles.title.fontFamily,
-          letterSpacing: isLI ? "-0.02em" : "0.08em",
-          fontSize: isLI ? "clamp(22px, 4vw, 36px)" : "clamp(28px, 5vw, 52px)",
+          letterSpacing: isLI ? "-0.03em" : "0.08em",
+          fontSize: isLI ? "clamp(20px, 3.5vw, 34px)" : "clamp(28px, 5vw, 52px)",
+          fontWeight: 900,
         }}>{c.appTitle}</div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={styles.modeToggle}>
@@ -637,68 +707,73 @@ export default function App(): JSX.Element {
           </div>
           <div style={{
             ...styles.liveIndicator,
-            color: isLI ? "#0077b5" : "#00ff88",
+            color: isLI ? LI.gold : "#00ff88",
             fontFamily: isLI ? LI_FONT : undefined,
+            fontWeight: isLI ? 700 : undefined,
           }}>
             <span style={{
               ...styles.liveDot,
-              background: isLI ? "#0077b5" : "#00ff88",
-              boxShadow: isLI ? "none" : "0 0 10px #00ff88",
+              background: isLI ? LI.gold : "#00ff88",
+              boxShadow: isLI ? `0 0 10px ${LI.gold}` : "0 0 10px #00ff88",
+              animation: "pulse 1.5s infinite",
             }} />
             {c.liveLabel}
           </div>
         </div>
       </div>
 
-      {/* Axis labels (left/right are absolute) */}
-      <div style={{ ...styles.axisLeft, color: isLI ? "#a0b4c8" : "#00ff8866" }}>{c.axisLeft}</div>
-      <div style={{ ...styles.axisRight, color: isLI ? "#a0b4c8" : "#00ff8866" }}>{c.axisRight}</div>
-
       {/* Main grid + sidebar */}
       <div style={styles.gridWrapper} className="grid-wrapper">
-        <div style={styles.gridColumn}>
-          <div style={{ ...styles.axisTop, color: isLI ? "#a0b4c8" : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.1em" : "0.25em" }}>{c.axisTop}</div>
-          <div style={{ ...styles.grid, gap: isLI ? "10px" : "4px" }}>
-          {(Object.entries(QUADRANTS) as [QuadrantKey, QuadrantConfig][]).map(([key, q]) => {
-            const usersHere = otherUsers.filter(([, u]) => u.vibe === key);
-            const isMine = myVibe === key;
-            return (
-              <Quadrant
-                key={key}
-                quadKey={key}
-                quadrant={{ ...q, label: c.quadrants[key] }}
-                isMine={isMine}
-                usersHere={usersHere}
-                onClick={() => handleVibeClick(key)}
-                mode={mode}
-              />
-            );
-          })}
+        {/* Grid with flanking axis labels — kept in one row so labels stay beside grid on all screen sizes */}
+        <div style={styles.gridWithAxes}>
+          <div style={{ ...styles.axisLeft, color: isLI ? LI.muted : "#00ff8866" }}>{c.axisLeft}</div>
+          <div style={styles.gridColumn}>
+            <div style={{ ...styles.axisTop, color: isLI ? LI.muted : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.15em" : "0.25em", fontWeight: isLI ? 700 : undefined }}>{c.axisTop}</div>
+            <div style={{ ...styles.grid, gap: isLI ? "8px" : "4px" }}>
+            {(Object.entries(QUADRANTS) as [QuadrantKey, QuadrantConfig][]).map(([key, q]) => {
+              const usersHere = otherUsers.filter(([, u]) => u.vibe === key);
+              const isMine = myVibe === key;
+              return (
+                <Quadrant
+                  key={key}
+                  quadKey={key}
+                  quadrant={{ ...q, label: c.quadrants[key] }}
+                  isMine={isMine}
+                  usersHere={usersHere}
+                  onClick={() => handleVibeClick(key)}
+                  mode={mode}
+                />
+              );
+            })}
+            </div>
+            <div style={{ ...styles.axisBottom, color: isLI ? LI.muted : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.15em" : "0.25em", fontWeight: isLI ? 700 : undefined }}>{c.axisBottom}</div>
           </div>
-          <div style={{ ...styles.axisBottom, color: isLI ? "#a0b4c8" : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.1em" : "0.25em" }}>{c.axisBottom}</div>
+          <div style={{ ...styles.axisRight, color: isLI ? LI.muted : "#00ff8866" }}>{c.axisRight}</div>
         </div>
 
         {/* Sidebar */}
         <div style={{
           ...styles.sidebar,
-          borderLeft: isLI ? "1px solid #dce6ef" : "1px solid #00ff4422",
-          background: isLI ? "#ffffff" : "transparent",
-          borderRadius: isLI ? "10px" : "0",
-          padding: isLI ? "12px 14px" : undefined,
-          boxShadow: isLI ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+          borderLeft: isLI ? `1px solid ${LI.border}` : "1px solid #00ff4422",
+          background: isLI ? LI.card : "transparent",
+          borderRadius: isLI ? "8px" : "0",
+          padding: isLI ? "14px 14px" : undefined,
+          boxShadow: isLI ? LI.shadow : "none",
         }} className="sidebar">
           <div style={{
             ...styles.sidebarTitle,
-            color: isLI ? "#0077b5" : "#00ff8888",
+            color: isLI ? LI.gold : "#00ff8888",
             fontFamily: isLI ? LI_FONT : undefined,
-            fontWeight: isLI ? 700 : undefined,
-            letterSpacing: isLI ? "0" : "0.2em",
-            fontSize: isLI ? "13px" : "11px",
+            fontWeight: isLI ? 800 : undefined,
+            letterSpacing: isLI ? "0.12em" : "0.2em",
+            fontSize: isLI ? "11px" : "11px",
+            textTransform: "uppercase",
           }} className="sidebar-title">{c.sidebarTitle}</div>
           <div style={{
             ...styles.sidebarCount,
-            color: isLI ? "#888" : "#00ff8855",
+            color: isLI ? LI.muted : "#00ff8855",
             fontFamily: isLI ? LI_FONT : undefined,
+            fontWeight: isLI ? 600 : undefined,
           }}>{activeCount} {c.onlineLabel}</div>
           <div style={styles.userList} className="user-list">
             {Object.entries(users).map(([id, u]) => (
@@ -706,10 +781,10 @@ export default function App(): JSX.Element {
                 key={id}
                 style={{
                   ...styles.userItem,
-                  borderBottom: isLI ? "1px solid #f0f0f0" : "1px solid #00ff4418",
+                  borderBottom: isLI ? `1px solid ${LI.border}` : "1px solid #00ff4418",
                   borderRadius: isLI ? "6px" : "0",
                   padding: isLI ? "10px 8px" : "14px 0",
-                  background: isLI && id === userId.current ? "#e8f4fd" : undefined,
+                  background: isLI && id === userId.current ? "rgba(240,180,41,0.07)" : undefined,
                 }}
                 className={`user-item${flashingUsers.has(id) ? " user-item-flash" : ""}`}
                 onContextMenu={(e) => handleContextMenu(e, id, u.name)}
@@ -718,26 +793,30 @@ export default function App(): JSX.Element {
                 <span
                   style={{
                     ...styles.userDot,
-                    background: id === userId.current ? (isLI ? "#0077b5" : "#fff") : (isLI ? "#7fc15e" : "#00ff88"),
-                    boxShadow: isLI ? "none" : "0 0 6px currentColor",
+                    background: id === userId.current ? (isLI ? LI.gold : "#fff") : (isLI ? LI.blue : "#00ff88"),
+                    boxShadow: isLI
+                      ? (id === userId.current ? `0 0 8px ${LI.goldGlow}` : `0 0 8px ${LI.blueGlow}`)
+                      : "0 0 6px currentColor",
                   }}
                 />
                 <div style={styles.userInfo} className="user-info">
                   <span style={{
                     ...styles.userName2,
-                    color: isLI ? "#1a1a1a" : "#00ff88cc",
+                    color: isLI ? LI.text : "#00ff88cc",
                     fontFamily: isLI ? LI_FONT : undefined,
-                    fontWeight: isLI ? 600 : undefined,
+                    fontWeight: isLI ? 700 : undefined,
                   }}>{u.name}</span>
                   {u.vibe && (
                     <span style={{
                       ...styles.userVibeBadge,
-                      color: isLI ? "#0077b5" : "#00ff8888",
+                      color: isLI ? LI.bg : "#00ff8888",
                       fontFamily: isLI ? LI_FONT : undefined,
-                      background: isLI ? "#e8f4fd" : "transparent",
-                      padding: isLI ? "1px 5px" : "0",
-                      borderRadius: isLI ? "4px" : "0",
-                      fontSize: isLI ? "10px" : "10px",
+                      background: isLI ? LI.blue : "transparent",
+                      padding: isLI ? "2px 6px" : "0",
+                      borderRadius: isLI ? "3px" : "0",
+                      fontSize: "10px",
+                      fontWeight: isLI ? 700 : undefined,
+                      letterSpacing: isLI ? "0.02em" : undefined,
                     }}>
                       {c.quadrants[u.vibe].replace(/\n/g, " ")}
                     </span>
@@ -752,13 +831,14 @@ export default function App(): JSX.Element {
       {/* Context menu */}
       {contextMenu && (
         <div
+          ref={contextMenuRef}
           style={{
             ...styles.contextMenu,
             left: contextMenu.x,
             top: contextMenu.y,
-            background: isLI ? "#ffffff" : "#050e05",
-            border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4444",
-            boxShadow: isLI ? "0 8px 24px rgba(0,0,0,0.15)" : "0 0 20px #00ff4422",
+            background: isLI ? LI.card : "#050e05",
+            border: isLI ? `1px solid ${LI.borderBlue}` : "1px solid #00ff4444",
+            boxShadow: isLI ? `${LI.shadow}, ${LI.shadowBlue}` : "0 0 20px #00ff4422",
             borderRadius: isLI ? "8px" : "0",
             fontFamily: isLI ? LI_FONT : undefined,
           }}
@@ -766,19 +846,21 @@ export default function App(): JSX.Element {
         >
           <div style={{
             ...styles.contextMenuUser,
-            color: isLI ? "#0077b5" : "#00ff8855",
-            borderBottom: isLI ? "1px solid #f0f0f0" : "1px solid #00ff4422",
-            fontWeight: isLI ? 700 : undefined,
+            color: isLI ? LI.gold : "#00ff8855",
+            borderBottom: isLI ? `1px solid ${LI.border}` : "1px solid #00ff4422",
+            fontWeight: isLI ? 800 : undefined,
+            letterSpacing: isLI ? "0.05em" : undefined,
           }}>{contextMenu.name}</div>
           {contextMenu.id !== userId.current && (
             <div style={{
               ...styles.contextMenuItem,
-              color: isLI ? "#0077b5" : "#ff3355",
+              color: isLI ? LI.blue : "#ff3355",
+              fontWeight: isLI ? 600 : undefined,
             }} onClick={() => handleMessageUser(contextMenu.id, contextMenu.name)}>
               {c.contextMessage}
             </div>
           )}
-          <div style={{ ...styles.contextMenuItem, color: isLI ? "#e74c3c" : "#ff3355" }} onClick={() => handleForceLogout(contextMenu.id)}>
+          <div style={{ ...styles.contextMenuItem, color: isLI ? "#e74c3c" : "#ff3355", fontWeight: isLI ? 600 : undefined }} onClick={() => handleForceLogout(contextMenu.id)}>
             {c.contextRemove}
           </div>
         </div>
@@ -789,27 +871,27 @@ export default function App(): JSX.Element {
         <div style={styles.dialogOverlay} onClick={() => setMessageTarget(null)}>
           <div style={{
             ...styles.dialogBox,
-            background: isLI ? "#ffffff" : "#050e05",
-            border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4466",
-            boxShadow: isLI ? "0 16px 48px rgba(0,0,0,0.18)" : "0 0 40px #00ff4422",
+            background: isLI ? LI.card : "#050e05",
+            border: isLI ? `1px solid ${LI.borderBlue}` : "1px solid #00ff4466",
+            boxShadow: isLI ? `${LI.shadow}, ${LI.shadowBlue}` : "0 0 40px #00ff4422",
             borderRadius: isLI ? "12px" : "0",
             fontFamily: isLI ? LI_FONT : undefined,
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{
               ...styles.dialogTitle,
-              color: isLI ? "#0077b5" : "#00ff8888",
+              color: isLI ? LI.gold : "#00ff8888",
               fontFamily: isLI ? LI_FONT : undefined,
-              fontWeight: isLI ? 700 : undefined,
+              fontWeight: isLI ? 800 : undefined,
               fontSize: isLI ? "16px" : "12px",
-              letterSpacing: isLI ? "0" : "0.2em",
+              letterSpacing: isLI ? "0.02em" : "0.2em",
             }}>{c.dialogTitlePrefix} {messageTarget.name}</div>
             <input
               style={{
                 ...styles.dialogInput,
-                color: isLI ? "#1a1a1a" : "#00ff88",
-                borderBottom: isLI ? "2px solid #0077b5" : "1px solid #00ff8855",
+                color: isLI ? LI.text : "#00ff88",
+                borderBottom: isLI ? `2px solid ${LI.blue}` : "1px solid #00ff8855",
                 fontFamily: isLI ? LI_FONT : undefined,
-                letterSpacing: isLI ? "0" : "0.1em",
+                letterSpacing: isLI ? "0.02em" : "0.1em",
               }}
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
@@ -821,12 +903,12 @@ export default function App(): JSX.Element {
             <div style={styles.dialogButtons}>
               <button style={{
                 ...styles.dialogSend,
-                background: isLI ? "#0077b5" : "transparent",
+                background: isLI ? LI.gold : "transparent",
                 border: isLI ? "none" : "1px solid #00ff88",
-                color: isLI ? "#ffffff" : "#00ff88",
-                borderRadius: isLI ? "24px" : "0",
+                color: isLI ? LI.bg : "#00ff88",
+                borderRadius: isLI ? "6px" : "0",
                 fontFamily: isLI ? LI_FONT : undefined,
-                fontWeight: isLI ? 600 : undefined,
+                fontWeight: isLI ? 800 : undefined,
               }} onClick={sendMessage}>{c.sendBtn}</button>
               <button style={{
                 ...styles.dialogCancel,
@@ -870,24 +952,24 @@ export default function App(): JSX.Element {
       {/* Footer */}
       <div style={{
         ...styles.footer,
-        color: isLI ? "#888" : "#00ff8888",
-        borderTop: isLI ? "1px solid #dce6ef" : "none",
+        color: isLI ? LI.muted : "#00ff8888",
+        borderTop: isLI ? `1px solid ${LI.border}` : "none",
         paddingTop: isLI ? "12px" : "0",
         marginTop: isLI ? "16px" : "10px",
         fontFamily: isLI ? LI_FONT : undefined,
       }}>
         <div style={styles.footerLeft}>
-          <span style={{ ...styles.footerDot, background: isLI ? "#0077b5" : "#fff", boxShadow: isLI ? "none" : "0 0 6px currentColor" }} /> YOU ({userName})
+          <span style={{ ...styles.footerDot, background: isLI ? LI.gold : "#fff", boxShadow: isLI ? `0 0 8px ${LI.goldGlow}` : "0 0 6px currentColor" }} /> YOU ({userName})
           &nbsp;&nbsp;|&nbsp;&nbsp;
-          <span style={{ ...styles.footerDot, background: isLI ? "#7fc15e" : "#00ff88", boxShadow: isLI ? "none" : "0 0 6px currentColor" }} /> {c.footerOthers}
+          <span style={{ ...styles.footerDot, background: isLI ? LI.blue : "#00ff88", boxShadow: isLI ? `0 0 8px ${LI.blueGlow}` : "0 0 6px currentColor" }} /> {c.footerOthers}
         </div>
         <div style={styles.footerMid}>{c.footerMid}</div>
         <button style={{
           ...styles.logoutBtn,
           background: isLI ? "transparent" : "transparent",
-          border: isLI ? "1px solid #dce6ef" : "1px solid #00ff8855",
-          color: isLI ? "#666" : "#00ff88",
-          borderRadius: isLI ? "20px" : "0",
+          border: isLI ? `1px solid ${LI.border}` : "1px solid #00ff8855",
+          color: isLI ? LI.muted : "#00ff88",
+          borderRadius: isLI ? "6px" : "0",
           fontFamily: isLI ? LI_FONT : undefined,
         }} onClick={handleLogout}>
           {c.logoutBtn}
@@ -970,30 +1052,44 @@ const styles: Record<string, CSSProperties> = {
     marginTop: "4px",
   },
   axisLeft: {
-    position: "absolute",
-    left: "6px",
-    top: "50%",
-    transform: "translateX(-50%) rotate(-90deg)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    writingMode: "vertical-rl",
+    transform: "rotate(180deg)",
     fontSize: "11px",
     letterSpacing: "0.25em",
     color: "#00ff8866",
     whiteSpace: "nowrap",
+    flexShrink: 0,
+    width: "16px",
+    userSelect: "none",
   },
   axisRight: {
-    position: "absolute",
-    right: "-8px",
-    top: "50%",
-    transform: "translateX(-50%) rotate(90deg)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    writingMode: "vertical-rl",
     fontSize: "11px",
     letterSpacing: "0.25em",
     color: "#00ff8866",
     whiteSpace: "nowrap",
+    flexShrink: 0,
+    width: "16px",
+    userSelect: "none",
   },
   gridWrapper: {
     display: "flex",
     gap: "12px",
     flex: 1,
     minHeight: 0,
+  },
+  gridWithAxes: {
+    display: "flex",
+    flexDirection: "row",
+    flex: 1,
+    minHeight: 0,
+    minWidth: 0,
   },
   gridColumn: {
     display: "flex",
@@ -1278,8 +1374,8 @@ const styles: Record<string, CSSProperties> = {
   linkedInOverlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,119,181,0.12)",
-    backdropFilter: "blur(6px)",
+    background: "rgba(8,15,26,0.85)",
+    backdropFilter: "blur(8px)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -1287,16 +1383,17 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
   },
   linkedInCard: {
-    background: "#ffffff",
+    background: "#0d1e30",
+    border: "1px solid rgba(240,180,41,0.4)",
     borderRadius: "16px",
     padding: "48px 40px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    gap: "14px",
+    gap: "16px",
     maxWidth: "480px",
     width: "90%",
-    boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+    boxShadow: "0 32px 80px rgba(0,0,0,0.7), 0 0 40px rgba(240,180,41,0.2)",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     position: "relative",
     zIndex: 1,
@@ -1304,45 +1401,48 @@ const styles: Record<string, CSSProperties> = {
     cursor: "default",
   },
   linkedInCardEmoji: {
-    fontSize: "60px",
+    fontSize: "64px",
     lineHeight: 1,
   },
   linkedInCardTitle: {
-    fontSize: "26px",
-    fontWeight: 800,
-    color: "#1a1a1a",
-    letterSpacing: "-0.02em",
+    fontSize: "28px",
+    fontWeight: 900,
+    color: "#f0b429",
+    letterSpacing: "-0.03em",
     textAlign: "center",
+    textShadow: "0 0 30px rgba(240,180,41,0.5)",
   },
   linkedInCardFrom: {
     fontSize: "14px",
-    color: "#666",
+    color: "#6b8aab",
     textAlign: "center",
-    lineHeight: 1.5,
+    lineHeight: 1.6,
   },
   linkedInCardMessage: {
     fontSize: "18px",
-    color: "#1a1a1a",
+    color: "#e8f0f8",
     textAlign: "center",
     lineHeight: 1.6,
     fontStyle: "italic",
-    background: "#f3f6f8",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.07)",
     borderRadius: "8px",
     padding: "16px 20px",
     width: "100%",
   },
   linkedInCardBtn: {
-    marginTop: "6px",
-    background: "#0077b5",
+    marginTop: "8px",
+    background: "#f0b429",
     border: "none",
-    borderRadius: "24px",
-    color: "#ffffff",
-    padding: "13px 36px",
+    borderRadius: "6px",
+    color: "#080f1a",
+    padding: "14px 40px",
     fontSize: "15px",
-    fontWeight: 700,
+    fontWeight: 800,
     cursor: "pointer",
     fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    letterSpacing: "0.02em",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
     animation: "linkedInPulse 2s 0.5s infinite",
   },
   modeToggle: {
@@ -1365,17 +1465,17 @@ const styles: Record<string, CSSProperties> = {
     boxShadow: "0 0 10px #00ff8833",
   },
   modeBtnActiveLinkedIn: {
-    border: "1px solid #0077b5aa",
-    color: "#0ea5e9",
-    boxShadow: "0 0 10px #0077b533",
+    border: "1px solid rgba(240,180,41,0.6)",
+    color: "#f0b429",
+    boxShadow: "0 0 10px rgba(240,180,41,0.25)",
   },
   modeBtnInactive: {
     border: "1px solid #ffffff11",
     color: "#ffffff22",
   },
   modeBtnInactiveLI: {
-    border: "1px solid #dce6ef",
-    color: "#a0b4c8",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "rgba(255,255,255,0.3)",
   },
   loginRoot: {
     minHeight: "100vh",
