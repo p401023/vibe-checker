@@ -182,6 +182,7 @@ export default function App(): JSX.Element {
 
   const userId = useRef<string>(getOrCreateUserId());
   const sirenRef = useRef<HTMLAudioElement | null>(null);
+  const lastTapRef = useRef<{ time: number; id: string } | null>(null);
 
   // Unlock siren audio on the first user click so it can play from Pusher events later
   useEffect(() => {
@@ -277,6 +278,19 @@ export default function App(): JSX.Element {
   const handleContextMenu = (e: React.MouseEvent, id: string, name: string): void => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, id, name });
+  };
+
+  const handleTap = (e: React.TouchEvent, id: string, name: string): void => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last && last.id === id && now - last.time < 300) {
+      e.preventDefault();
+      const touch = e.changedTouches[0];
+      setContextMenu({ x: touch.clientX, y: touch.clientY, id, name });
+      lastTapRef.current = null;
+    } else {
+      lastTapRef.current = { time: now, id };
+    }
   };
 
   const handleMessageUser = (id: string, name: string): void => {
@@ -407,6 +421,7 @@ export default function App(): JSX.Element {
                 key={id}
                 style={styles.userItem}
                 onContextMenu={(e) => handleContextMenu(e, id, u.name)}
+                onTouchEnd={(e) => handleTap(e, id, u.name)}
               >
                 <span
                   style={{
