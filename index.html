@@ -32,6 +32,41 @@
         0%, 49% { background: rgba(180,0,0,0.18); }
         50%, 100% { background: rgba(0,0,0,0.92); }
       }
+      @keyframes vibeFlash {
+        0%   { background: rgba(0,255,136,0.22); box-shadow: inset 0 0 10px rgba(0,255,136,0.3); }
+        100% { background: transparent; box-shadow: none; }
+      }
+      .user-item-flash {
+        animation: vibeFlash 0.9s ease-out;
+      }
+      @media (max-width: 680px) {
+        .grid-wrapper { flex-direction: column !important; }
+        .sidebar {
+          width: 100% !important;
+          border-left: none !important;
+          border-top: 1px solid #00ff4418;
+          padding-left: 0 !important;
+          padding-top: 12px;
+          flex-direction: row !important;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .sidebar-title { display: none; }
+        .user-list {
+          flex-direction: row !important;
+          flex-wrap: wrap !important;
+          gap: 6px !important;
+          overflow-y: visible !important;
+        }
+        .user-item {
+          padding: 4px 8px !important;
+          border-bottom: none !important;
+          border: 1px solid #00ff4418 !important;
+          min-width: 0;
+        }
+        .user-info { flex-direction: row !important; gap: 6px !important; align-items: center !important; }
+      }
     </style>
   </head>
   <body>

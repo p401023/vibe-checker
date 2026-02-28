@@ -179,6 +179,7 @@ export default function App(): JSX.Element {
   const [messageTarget, setMessageTarget] = useState<{ id: string; name: string } | null>(null);
   const [messageInput, setMessageInput] = useState<string>("");
   const [incomingMessage, setIncomingMessage] = useState<{ fromName: string; text: string } | null>(null);
+  const [flashingUsers, setFlashingUsers] = useState<Set<string>>(new Set());
 
   const userId = useRef<string>(getOrCreateUserId());
   const sirenRef = useRef<HTMLAudioElement | null>(null);
@@ -234,6 +235,15 @@ export default function App(): JSX.Element {
       }));
       if (data.id === userId.current) {
         setMyVibe(data.vibe as QuadrantKey | null);
+      } else {
+        setFlashingUsers((prev) => new Set(prev).add(data.id));
+        setTimeout(() => {
+          setFlashingUsers((prev) => {
+            const next = new Set(prev);
+            next.delete(data.id);
+            return next;
+          });
+        }, 900);
       }
     });
 
@@ -389,7 +399,7 @@ export default function App(): JSX.Element {
       <div style={styles.axisRight}>PLEASANT</div>
 
       {/* Main grid + sidebar */}
-      <div style={styles.gridWrapper}>
+      <div style={styles.gridWrapper} className="grid-wrapper">
         <div style={styles.gridColumn}>
           <div style={styles.axisTop}>HIGH ENERGY</div>
           <div style={styles.grid}>
@@ -412,14 +422,15 @@ export default function App(): JSX.Element {
         </div>
 
         {/* Sidebar */}
-        <div style={styles.sidebar}>
-          <div style={styles.sidebarTitle}>ACTIVE USERS</div>
+        <div style={styles.sidebar} className="sidebar">
+          <div style={styles.sidebarTitle} className="sidebar-title">ACTIVE USERS</div>
           <div style={styles.sidebarCount}>{activeCount} online</div>
-          <div style={styles.userList}>
+          <div style={styles.userList} className="user-list">
             {Object.entries(users).map(([id, u]) => (
               <div
                 key={id}
                 style={styles.userItem}
+                className={`user-item${flashingUsers.has(id) ? " user-item-flash" : ""}`}
                 onContextMenu={(e) => handleContextMenu(e, id, u.name)}
                 onTouchEnd={(e) => handleTap(e, id, u.name)}
               >
@@ -429,7 +440,7 @@ export default function App(): JSX.Element {
                     background: id === userId.current ? "#fff" : "#00ff88",
                   }}
                 />
-                <div style={styles.userInfo}>
+                <div style={styles.userInfo} className="user-info">
                   <span style={styles.userName2}>{u.name}</span>
                   {u.vibe && (
                     <span style={styles.userVibeBadge}>
@@ -698,7 +709,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "flex-start",
     gap: "8px",
-    padding: "10px 0",
+    padding: "14px 0",
     borderBottom: "1px solid #00ff4418",
     fontSize: "12px",
   },
