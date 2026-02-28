@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, CSSProperties, FC, KeyboardEvent } from "react";
+import { useState, useEffect, useRef, useMemo, CSSProperties, FC, KeyboardEvent } from "react";
 import Pusher from "pusher-js";
 
 const pusherClient = new Pusher(import.meta.env.VITE_PUSHER_KEY, {
@@ -23,6 +23,73 @@ interface UserRecord {
 }
  
 type UsersMap = Record<string, UserRecord>;
+
+type AppMode = "twitter" | "linkedin";
+
+// ─── Mode Content ────────────────────────────────────────────────────────────
+
+const CONTENT = {
+  twitter: {
+    appTitle: "VIBE CHECKER",
+    loginSub: "ENTER YOUR NAME TO JOIN",
+    loginPlaceholder: "YOUR NAME",
+    joinBtn: "JOIN →",
+    axisTop: "HIGH ENERGY",
+    axisBottom: "LOW ENERGY",
+    axisLeft: "UNPLEASANT",
+    axisRight: "PLEASANT",
+    sidebarTitle: "ACTIVE USERS",
+    onlineLabel: "online",
+    footerOthers: "OTHERS",
+    footerMid: "ACTIVE USERS IN LAST 10 MINUTES",
+    logoutBtn: "LOG OUT",
+    liveLabel: "LIVE",
+    contextMessage: "MESSAGE USER",
+    contextRemove: "REMOVE USER",
+    dialogTitlePrefix: "MESSAGE →",
+    dialogPlaceholder: "TYPE MESSAGE...",
+    sendBtn: "SEND",
+    cancelBtn: "CANCEL",
+    incomingPrefix: "⚠ MESSAGE FROM",
+    dismissLabel: "CLICK ANYWHERE TO ACKNOWLEDGE",
+    quadrants: {
+      "high-unpleasant": "FUCK IT\nWE BALL",
+      "high-pleasant": "LETS\nFUCKING\nGOOOOO",
+      "low-unpleasant": "MOM\nWOULD BE\nBE SAD",
+      "low-pleasant": "WE\nVIBING",
+    } as Record<QuadrantKey, string>,
+  },
+  linkedin: {
+    appTitle: "SENTIMENT DASHBOARD",
+    loginSub: "INPUT YOUR PROFESSIONAL IDENTIFIER",
+    loginPlaceholder: "YOUR NAME",
+    joinBtn: "ONBOARD →",
+    axisTop: "HIGH BANDWIDTH",
+    axisBottom: "LOW BANDWIDTH",
+    axisLeft: "MISALIGNED",
+    axisRight: "SYNERGIZED",
+    sidebarTitle: "ACTIVE STAKEHOLDERS",
+    onlineLabel: "engaged",
+    footerOthers: "PEERS",
+    footerMid: "STAKEHOLDERS ENGAGED IN LAST 10 MIN",
+    logoutBtn: "DISCONNECT",
+    liveLabel: "SYNCING",
+    contextMessage: "REACH OUT",
+    contextRemove: "OFFBOARD",
+    dialogTitlePrefix: "OUTREACH →",
+    dialogPlaceholder: "ARTICULATE VALUE PROP...",
+    sendBtn: "DEPLOY",
+    cancelBtn: "ABORT MISSION",
+    incomingPrefix: "💼 SYNERGY PING FROM",
+    dismissLabel: "CLICK ANYWHERE TO CIRCLE BACK",
+    quadrants: {
+      "high-unpleasant": "DISRUPTING\nTHE SPACE\nPROACTIVELY",
+      "high-pleasant": "HUMBLED\nAND\nHONOURED",
+      "low-unpleasant": "PIVOTING\nGROWTH\nMINDSET",
+      "low-pleasant": "DELIVERING\nSTAKEHOLDER\nVALUE",
+    } as Record<QuadrantKey, string>,
+  },
+} satisfies Record<AppMode, unknown>;
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -89,34 +156,80 @@ async function post(path: string, body: object) {
 
 // ─── Components ─────────────────────────────────────────────────────────────
 
+const CONFETTI_COLORS = ["#0077b5","#00a0dc","#f5a623","#7fc15e","#e74c3c","#ffffff","#86c3da","#ffd700","#b36adf"];
+
+const ConfettiPieces: FC = () => {
+  const pieces = useMemo(() =>
+    Array.from({ length: 72 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      width: 5 + Math.random() * 9,
+      height: 4 + Math.random() * 7,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      delay: Math.random() * 2.8,
+      duration: 1.8 + Math.random() * 2.2,
+    }))
+  , []);
+
+  return (
+    <>
+      {pieces.map(p => (
+        <div
+          key={p.id}
+          style={{
+            position: "absolute",
+            top: "-20px",
+            left: `${p.left}%`,
+            width: p.width,
+            height: p.height,
+            background: p.color,
+            borderRadius: "2px",
+            animation: `confettiFall ${p.duration}s ${p.delay}s ease-in infinite`,
+          }}
+        />
+      ))}
+    </>
+  );
+};
+
 interface QuadrantProps {
   quadKey: QuadrantKey;
   quadrant: QuadrantConfig;
   isMine: boolean;
   usersHere: [string, UserRecord][];
   onClick: () => void;
+  mode: AppMode;
 }
 
-const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick }) => {
+const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick, mode }) => {
+  const isLI = mode === "linkedin";
   return (
     <div
       onClick={onClick}
       style={{
         ...styles.quadrant,
-        background: quadrant.bg,
-        border: isMine ? `2px solid ${quadrant.border}` : "1px solid #1a2a1a",
-        boxShadow: isMine
-          ? `0 0 30px ${quadrant.border}55, inset 0 0 30px ${quadrant.border}11`
-          : "none",
+        background: isLI ? "#ffffff" : quadrant.bg,
+        border: isLI
+          ? (isMine ? "2px solid #0077b5" : "1px solid #dce6ef")
+          : (isMine ? `2px solid ${quadrant.border}` : "1px solid #1a2a1a"),
+        boxShadow: isLI
+          ? (isMine ? "0 4px 20px rgba(0,119,181,0.18)" : "0 2px 8px rgba(0,0,0,0.06)")
+          : (isMine ? `0 0 30px ${quadrant.border}55, inset 0 0 30px ${quadrant.border}11` : "none"),
+        borderRadius: isLI ? "10px" : "0",
         cursor: "pointer",
+        transition: "all 0.2s ease",
       }}
     >
       <div
         style={{
           ...styles.quadLabel,
-          color: quadrant.color,
-          opacity: isMine ? 1 : 0.35,
-          textShadow: isMine ? `0 0 20px ${quadrant.color}` : "none",
+          color: isLI ? (isMine ? "#0077b5" : "#44546a") : quadrant.color,
+          opacity: isLI ? (isMine ? 1 : 0.65) : (isMine ? 1 : 0.35),
+          textShadow: isLI ? "none" : (isMine ? `0 0 20px ${quadrant.color}` : "none"),
+          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+          fontWeight: isLI ? 700 : 900,
+          fontSize: isLI ? "clamp(13px, 2vw, 22px)" : undefined,
+          letterSpacing: isLI ? "0" : undefined,
         }}
       >
         {quadrant.label}
@@ -125,13 +238,30 @@ const Quadrant: FC<QuadrantProps> = ({ quadrant, isMine, usersHere, onClick }) =
       <div style={styles.avatarRow}>
         {usersHere.map(([id, u]) => (
           <div key={id} style={styles.avatar} title={u.name}>
-            <div style={styles.avatarDot} />
-            <div style={styles.avatarName}>{u.name.slice(0, 6).toUpperCase()}</div>
+            <div style={{
+              ...styles.avatarDot,
+              background: isLI ? "#0077b5" : "#00ff88",
+              boxShadow: isLI ? "none" : "0 0 8px #00ff88",
+            }} />
+            <div style={{
+              ...styles.avatarName,
+              color: isLI ? "#0077b5" : "#00ff88",
+              fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+            }}>{u.name.slice(0, 6).toUpperCase()}</div>
           </div>
         ))}
       </div>
 
-      {isMine && <div style={styles.myIndicator}>● YOU</div>}
+      {isMine && (
+        <div style={{
+          ...styles.myIndicator,
+          color: isLI ? "#0077b5" : "#fff",
+          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+          animation: isLI ? "linkedInPulse 2s infinite" : undefined,
+        }}>
+          {isLI ? "✓ YOU" : "● YOU"}
+        </div>
+      )}
     </div>
   );
 };
@@ -140,27 +270,89 @@ interface LoginScreenProps {
   nameInput: string;
   setNameInput: (val: string) => void;
   onJoin: () => void;
+  mode: AppMode;
+  onToggleMode: () => void;
 }
 
-const LoginScreen: FC<LoginScreenProps> = ({ nameInput, setNameInput, onJoin }) => {
+const LoginScreen: FC<LoginScreenProps> = ({ nameInput, setNameInput, onJoin, mode, onToggleMode }) => {
+  const c = CONTENT[mode];
+  const isLI = mode === "linkedin";
   return (
-    <div style={styles.loginRoot}>
-      <div style={styles.scanlines} />
-      <div style={styles.loginBox}>
-        <div style={styles.loginTitle}>VIBE CHECKER</div>
-        <div style={styles.loginSub}>ENTER YOUR NAME TO JOIN</div>
+    <div style={{
+      ...styles.loginRoot,
+      background: isLI ? "#f3f6f8" : "#050e05",
+      fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+    }}>
+      {!isLI && <div style={styles.scanlines} />}
+      <div style={{
+        ...styles.loginBox,
+        background: isLI ? "#ffffff" : "#000a00",
+        border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4444",
+        boxShadow: isLI ? "0 8px 40px rgba(0,0,0,0.12)" : "0 0 60px #00ff4422",
+        borderRadius: isLI ? "12px" : "0",
+      }}>
+        {isLI && (
+          <div style={{ fontSize: "40px", marginBottom: "-8px" }}>💼</div>
+        )}
+        <div style={{
+          ...styles.loginTitle,
+          color: isLI ? "#0077b5" : "#00ff88",
+          textShadow: isLI ? "none" : "0 0 30px #00ff88",
+          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+          fontWeight: isLI ? 800 : 900,
+          letterSpacing: isLI ? "-0.02em" : "0.1em",
+          fontSize: isLI ? "28px" : "36px",
+        }}>{c.appTitle}</div>
+        <div style={{
+          ...styles.loginSub,
+          color: isLI ? "#666" : "#00ff8866",
+          letterSpacing: isLI ? "0" : "0.3em",
+          fontSize: isLI ? "14px" : "11px",
+        }}>{c.loginSub}</div>
         <input
-          style={styles.loginInput}
+          style={{
+            ...styles.loginInput,
+            color: isLI ? "#1a1a1a" : "#00ff88",
+            borderBottom: isLI ? "2px solid #0077b5" : "1px solid #00ff8855",
+            fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+            letterSpacing: isLI ? "0" : "0.15em",
+            fontSize: isLI ? "16px" : "18px",
+          }}
           value={nameInput}
           onChange={(e) => setNameInput(e.target.value)}
           onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && onJoin()}
-          placeholder="YOUR NAME"
+          placeholder={c.loginPlaceholder}
           autoFocus
           maxLength={20}
         />
-        <button style={styles.loginBtn} onClick={onJoin}>
-          JOIN →
+        <button style={{
+          ...styles.loginBtn,
+          background: isLI ? "#0077b5" : "transparent",
+          border: isLI ? "none" : "1px solid #00ff88",
+          color: isLI ? "#ffffff" : "#00ff88",
+          borderRadius: isLI ? "24px" : "0",
+          boxShadow: isLI ? "0 4px 16px rgba(0,119,181,0.3)" : "0 0 20px #00ff8833",
+          fontFamily: isLI ? "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" : undefined,
+          fontWeight: isLI ? 600 : undefined,
+          letterSpacing: isLI ? "0.05em" : "0.2em",
+          padding: isLI ? "12px 36px" : "10px 32px",
+        }} onClick={onJoin}>
+          {c.joinBtn}
         </button>
+        <div style={styles.modeToggle}>
+          <button
+            style={{ ...styles.modeBtn, ...(mode === "twitter" ? styles.modeBtnActive : (isLI ? styles.modeBtnInactiveLI : styles.modeBtnInactive)) }}
+            onClick={() => mode !== "twitter" && onToggleMode()}
+          >
+            𝕏 TWITTER
+          </button>
+          <button
+            style={{ ...styles.modeBtn, ...(mode === "linkedin" ? styles.modeBtnActiveLinkedIn : (isLI ? styles.modeBtnInactiveLI : styles.modeBtnInactive)) }}
+            onClick={() => mode !== "linkedin" && onToggleMode()}
+          >
+            in LINKEDIN
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -180,6 +372,17 @@ export default function App(): JSX.Element {
   const [messageInput, setMessageInput] = useState<string>("");
   const [incomingMessage, setIncomingMessage] = useState<{ fromName: string; text: string } | null>(null);
   const [flashingUsers, setFlashingUsers] = useState<Set<string>>(new Set());
+  const [mode, setMode] = useState<AppMode>(
+    () => (localStorage.getItem("vibeMode") as AppMode) ?? "twitter"
+  );
+
+  const toggleMode = (): void => {
+    setMode((prev) => {
+      const next: AppMode = prev === "twitter" ? "linkedin" : "twitter";
+      localStorage.setItem("vibeMode", next);
+      return next;
+    });
+  };
 
   const userId = useRef<string>(getOrCreateUserId());
   const sirenRef = useRef<HTMLAudioElement | null>(null);
@@ -269,6 +472,11 @@ export default function App(): JSX.Element {
       pusherClient.unsubscribe("vibe-checker");
     };
   }, []);
+
+  // Sync body background to mode
+  useEffect(() => {
+    document.body.style.background = mode === "linkedin" ? "#f3f6f8" : "#050e05";
+  }, [mode]);
 
   // Heartbeat
   useEffect(() => {
@@ -371,38 +579,86 @@ export default function App(): JSX.Element {
   const otherUsers = Object.entries(users).filter(([id]) => id !== userId.current) as [string, UserRecord][];
   const activeCount = Object.keys(users).length;
 
+  const c = CONTENT[mode];
+  const isLI = mode === "linkedin";
+  const LI_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
   if (!userName) {
     return (
       <LoginScreen
         nameInput={nameInput}
         setNameInput={setNameInput}
         onJoin={handleJoin}
+        mode={mode}
+        onToggleMode={toggleMode}
       />
     );
   }
 
   return (
-    <div style={styles.root}>
-      <div style={styles.scanlines} />
+    <div style={{
+      ...styles.root,
+      background: isLI ? "#f3f6f8" : "#050e05",
+      color: isLI ? "#1a1a1a" : "#00ff88",
+      fontFamily: isLI ? LI_FONT : styles.root.fontFamily,
+      border: isLI ? "none" : "2px solid #00ff4422",
+    }}>
+      {!isLI && <div style={styles.scanlines} />}
 
       {/* Header */}
-      <div style={styles.header}>
-        <div style={styles.title}>VIBE CHECKER</div>
-        <div style={styles.liveIndicator}>
-          <span style={styles.liveDot} />
-          LIVE
+      <div style={{
+        ...styles.header,
+        borderBottom: isLI ? "1px solid #dce6ef" : "none",
+        paddingBottom: isLI ? "12px" : "0",
+        marginBottom: isLI ? "16px" : "8px",
+      }}>
+        <div style={{
+          ...styles.title,
+          color: isLI ? "#0077b5" : "#00ff88",
+          textShadow: isLI ? "none" : "0 0 30px #00ff8888, 0 0 60px #00ff8844",
+          fontFamily: isLI ? LI_FONT : styles.title.fontFamily,
+          letterSpacing: isLI ? "-0.02em" : "0.08em",
+          fontSize: isLI ? "clamp(22px, 4vw, 36px)" : "clamp(28px, 5vw, 52px)",
+        }}>{c.appTitle}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={styles.modeToggle}>
+            <button
+              style={{ ...styles.modeBtn, ...(mode === "twitter" ? styles.modeBtnActive : (isLI ? styles.modeBtnInactiveLI : styles.modeBtnInactive)) }}
+              onClick={() => mode !== "twitter" && toggleMode()}
+            >
+              𝕏 TWITTER
+            </button>
+            <button
+              style={{ ...styles.modeBtn, ...(mode === "linkedin" ? styles.modeBtnActiveLinkedIn : (isLI ? styles.modeBtnInactiveLI : styles.modeBtnInactive)) }}
+              onClick={() => mode !== "linkedin" && toggleMode()}
+            >
+              in LINKEDIN
+            </button>
+          </div>
+          <div style={{
+            ...styles.liveIndicator,
+            color: isLI ? "#0077b5" : "#00ff88",
+            fontFamily: isLI ? LI_FONT : undefined,
+          }}>
+            <span style={{
+              ...styles.liveDot,
+              background: isLI ? "#0077b5" : "#00ff88",
+              boxShadow: isLI ? "none" : "0 0 10px #00ff88",
+            }} />
+            {c.liveLabel}
+          </div>
         </div>
       </div>
 
       {/* Axis labels (left/right are absolute) */}
-      <div style={styles.axisLeft}>UNPLEASANT</div>
-      <div style={styles.axisRight}>PLEASANT</div>
+      <div style={{ ...styles.axisLeft, color: isLI ? "#a0b4c8" : "#00ff8866" }}>{c.axisLeft}</div>
+      <div style={{ ...styles.axisRight, color: isLI ? "#a0b4c8" : "#00ff8866" }}>{c.axisRight}</div>
 
       {/* Main grid + sidebar */}
       <div style={styles.gridWrapper} className="grid-wrapper">
         <div style={styles.gridColumn}>
-          <div style={styles.axisTop}>HIGH ENERGY</div>
-          <div style={styles.grid}>
+          <div style={{ ...styles.axisTop, color: isLI ? "#a0b4c8" : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.1em" : "0.25em" }}>{c.axisTop}</div>
+          <div style={{ ...styles.grid, gap: isLI ? "10px" : "4px" }}>
           {(Object.entries(QUADRANTS) as [QuadrantKey, QuadrantConfig][]).map(([key, q]) => {
             const usersHere = otherUsers.filter(([, u]) => u.vibe === key);
             const isMine = myVibe === key;
@@ -410,26 +666,51 @@ export default function App(): JSX.Element {
               <Quadrant
                 key={key}
                 quadKey={key}
-                quadrant={q}
+                quadrant={{ ...q, label: c.quadrants[key] }}
                 isMine={isMine}
                 usersHere={usersHere}
                 onClick={() => handleVibeClick(key)}
+                mode={mode}
               />
             );
           })}
           </div>
-          <div style={styles.axisBottom}>LOW ENERGY</div>
+          <div style={{ ...styles.axisBottom, color: isLI ? "#a0b4c8" : "#00ff8888", fontFamily: isLI ? LI_FONT : undefined, letterSpacing: isLI ? "0.1em" : "0.25em" }}>{c.axisBottom}</div>
         </div>
 
         {/* Sidebar */}
-        <div style={styles.sidebar} className="sidebar">
-          <div style={styles.sidebarTitle} className="sidebar-title">ACTIVE USERS</div>
-          <div style={styles.sidebarCount}>{activeCount} online</div>
+        <div style={{
+          ...styles.sidebar,
+          borderLeft: isLI ? "1px solid #dce6ef" : "1px solid #00ff4422",
+          background: isLI ? "#ffffff" : "transparent",
+          borderRadius: isLI ? "10px" : "0",
+          padding: isLI ? "12px 14px" : undefined,
+          boxShadow: isLI ? "0 2px 8px rgba(0,0,0,0.06)" : "none",
+        }} className="sidebar">
+          <div style={{
+            ...styles.sidebarTitle,
+            color: isLI ? "#0077b5" : "#00ff8888",
+            fontFamily: isLI ? LI_FONT : undefined,
+            fontWeight: isLI ? 700 : undefined,
+            letterSpacing: isLI ? "0" : "0.2em",
+            fontSize: isLI ? "13px" : "11px",
+          }} className="sidebar-title">{c.sidebarTitle}</div>
+          <div style={{
+            ...styles.sidebarCount,
+            color: isLI ? "#888" : "#00ff8855",
+            fontFamily: isLI ? LI_FONT : undefined,
+          }}>{activeCount} {c.onlineLabel}</div>
           <div style={styles.userList} className="user-list">
             {Object.entries(users).map(([id, u]) => (
               <div
                 key={id}
-                style={styles.userItem}
+                style={{
+                  ...styles.userItem,
+                  borderBottom: isLI ? "1px solid #f0f0f0" : "1px solid #00ff4418",
+                  borderRadius: isLI ? "6px" : "0",
+                  padding: isLI ? "10px 8px" : "14px 0",
+                  background: isLI && id === userId.current ? "#e8f4fd" : undefined,
+                }}
                 className={`user-item${flashingUsers.has(id) ? " user-item-flash" : ""}`}
                 onContextMenu={(e) => handleContextMenu(e, id, u.name)}
                 onTouchEnd={(e) => handleTap(e, id, u.name)}
@@ -437,14 +718,28 @@ export default function App(): JSX.Element {
                 <span
                   style={{
                     ...styles.userDot,
-                    background: id === userId.current ? "#fff" : "#00ff88",
+                    background: id === userId.current ? (isLI ? "#0077b5" : "#fff") : (isLI ? "#7fc15e" : "#00ff88"),
+                    boxShadow: isLI ? "none" : "0 0 6px currentColor",
                   }}
                 />
                 <div style={styles.userInfo} className="user-info">
-                  <span style={styles.userName2}>{u.name}</span>
+                  <span style={{
+                    ...styles.userName2,
+                    color: isLI ? "#1a1a1a" : "#00ff88cc",
+                    fontFamily: isLI ? LI_FONT : undefined,
+                    fontWeight: isLI ? 600 : undefined,
+                  }}>{u.name}</span>
                   {u.vibe && (
-                    <span style={styles.userVibeBadge}>
-                      {QUADRANTS[u.vibe]?.label.replace(/\n/g, " ")}
+                    <span style={{
+                      ...styles.userVibeBadge,
+                      color: isLI ? "#0077b5" : "#00ff8888",
+                      fontFamily: isLI ? LI_FONT : undefined,
+                      background: isLI ? "#e8f4fd" : "transparent",
+                      padding: isLI ? "1px 5px" : "0",
+                      borderRadius: isLI ? "4px" : "0",
+                      fontSize: isLI ? "10px" : "10px",
+                    }}>
+                      {c.quadrants[u.vibe].replace(/\n/g, " ")}
                     </span>
                   )}
                 </div>
@@ -457,17 +752,34 @@ export default function App(): JSX.Element {
       {/* Context menu */}
       {contextMenu && (
         <div
-          style={{ ...styles.contextMenu, left: contextMenu.x, top: contextMenu.y }}
+          style={{
+            ...styles.contextMenu,
+            left: contextMenu.x,
+            top: contextMenu.y,
+            background: isLI ? "#ffffff" : "#050e05",
+            border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4444",
+            boxShadow: isLI ? "0 8px 24px rgba(0,0,0,0.15)" : "0 0 20px #00ff4422",
+            borderRadius: isLI ? "8px" : "0",
+            fontFamily: isLI ? LI_FONT : undefined,
+          }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={styles.contextMenuUser}>{contextMenu.name}</div>
+          <div style={{
+            ...styles.contextMenuUser,
+            color: isLI ? "#0077b5" : "#00ff8855",
+            borderBottom: isLI ? "1px solid #f0f0f0" : "1px solid #00ff4422",
+            fontWeight: isLI ? 700 : undefined,
+          }}>{contextMenu.name}</div>
           {contextMenu.id !== userId.current && (
-            <div style={styles.contextMenuItem} onClick={() => handleMessageUser(contextMenu.id, contextMenu.name)}>
-              MESSAGE USER
+            <div style={{
+              ...styles.contextMenuItem,
+              color: isLI ? "#0077b5" : "#ff3355",
+            }} onClick={() => handleMessageUser(contextMenu.id, contextMenu.name)}>
+              {c.contextMessage}
             </div>
           )}
-          <div style={{ ...styles.contextMenuItem, color: "#ff3355" }} onClick={() => handleForceLogout(contextMenu.id)}>
-            REMOVE USER
+          <div style={{ ...styles.contextMenuItem, color: isLI ? "#e74c3c" : "#ff3355" }} onClick={() => handleForceLogout(contextMenu.id)}>
+            {c.contextRemove}
           </div>
         </div>
       )}
@@ -475,44 +787,110 @@ export default function App(): JSX.Element {
       {/* Message compose dialog */}
       {messageTarget && (
         <div style={styles.dialogOverlay} onClick={() => setMessageTarget(null)}>
-          <div style={styles.dialogBox} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.dialogTitle}>MESSAGE → {messageTarget.name.toUpperCase()}</div>
+          <div style={{
+            ...styles.dialogBox,
+            background: isLI ? "#ffffff" : "#050e05",
+            border: isLI ? "1px solid #dce6ef" : "1px solid #00ff4466",
+            boxShadow: isLI ? "0 16px 48px rgba(0,0,0,0.18)" : "0 0 40px #00ff4422",
+            borderRadius: isLI ? "12px" : "0",
+            fontFamily: isLI ? LI_FONT : undefined,
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{
+              ...styles.dialogTitle,
+              color: isLI ? "#0077b5" : "#00ff8888",
+              fontFamily: isLI ? LI_FONT : undefined,
+              fontWeight: isLI ? 700 : undefined,
+              fontSize: isLI ? "16px" : "12px",
+              letterSpacing: isLI ? "0" : "0.2em",
+            }}>{c.dialogTitlePrefix} {messageTarget.name}</div>
             <input
-              style={styles.dialogInput}
+              style={{
+                ...styles.dialogInput,
+                color: isLI ? "#1a1a1a" : "#00ff88",
+                borderBottom: isLI ? "2px solid #0077b5" : "1px solid #00ff8855",
+                fontFamily: isLI ? LI_FONT : undefined,
+                letterSpacing: isLI ? "0" : "0.1em",
+              }}
               value={messageInput}
               onChange={(e) => setMessageInput(e.target.value)}
               onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && sendMessage()}
-              placeholder="TYPE MESSAGE..."
+              placeholder={c.dialogPlaceholder}
               autoFocus
               maxLength={80}
             />
             <div style={styles.dialogButtons}>
-              <button style={styles.dialogSend} onClick={sendMessage}>SEND</button>
-              <button style={styles.dialogCancel} onClick={() => setMessageTarget(null)}>CANCEL</button>
+              <button style={{
+                ...styles.dialogSend,
+                background: isLI ? "#0077b5" : "transparent",
+                border: isLI ? "none" : "1px solid #00ff88",
+                color: isLI ? "#ffffff" : "#00ff88",
+                borderRadius: isLI ? "24px" : "0",
+                fontFamily: isLI ? LI_FONT : undefined,
+                fontWeight: isLI ? 600 : undefined,
+              }} onClick={sendMessage}>{c.sendBtn}</button>
+              <button style={{
+                ...styles.dialogCancel,
+                fontFamily: isLI ? LI_FONT : undefined,
+                borderRadius: isLI ? "24px" : "0",
+              }} onClick={() => setMessageTarget(null)}>{c.cancelBtn}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Incoming message overlay */}
-      {incomingMessage && (
+      {/* Incoming message overlay — Twitter mode */}
+      {incomingMessage && !isLI && (
         <div style={styles.messageOverlay} onClick={dismissMessage}>
-          <div style={styles.messageFrom}>⚠ MESSAGE FROM {incomingMessage.fromName.toUpperCase()} ⚠</div>
+          <div style={styles.messageFrom}>{c.incomingPrefix} {incomingMessage.fromName.toUpperCase()}</div>
           <div style={styles.messageText}>{incomingMessage.text.toUpperCase()}</div>
-          <div style={styles.messageDismiss}>CLICK ANYWHERE TO ACKNOWLEDGE</div>
+          <div style={styles.messageDismiss}>{c.dismissLabel}</div>
+        </div>
+      )}
+
+      {/* Incoming message overlay — LinkedIn mode */}
+      {incomingMessage && isLI && (
+        <div style={styles.linkedInOverlay} onClick={dismissMessage}>
+          <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+            <ConfettiPieces />
+          </div>
+          <div style={styles.linkedInCard} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.linkedInCardEmoji}>🎉</div>
+            <div style={styles.linkedInCardTitle}>New Synergy Ping!</div>
+            <div style={styles.linkedInCardFrom}>
+              <strong>{incomingMessage.fromName}</strong> has reached out to leverage synergies with you
+            </div>
+            <div style={styles.linkedInCardMessage}>"{incomingMessage.text}"</div>
+            <button style={styles.linkedInCardBtn} onClick={dismissMessage}>
+              {c.dismissLabel}
+            </button>
+          </div>
         </div>
       )}
 
       {/* Footer */}
-      <div style={styles.footer}>
+      <div style={{
+        ...styles.footer,
+        color: isLI ? "#888" : "#00ff8888",
+        borderTop: isLI ? "1px solid #dce6ef" : "none",
+        paddingTop: isLI ? "12px" : "0",
+        marginTop: isLI ? "16px" : "10px",
+        fontFamily: isLI ? LI_FONT : undefined,
+      }}>
         <div style={styles.footerLeft}>
-          <span style={{ ...styles.footerDot, background: "#fff" }} /> YOU ({userName})
+          <span style={{ ...styles.footerDot, background: isLI ? "#0077b5" : "#fff", boxShadow: isLI ? "none" : "0 0 6px currentColor" }} /> YOU ({userName})
           &nbsp;&nbsp;|&nbsp;&nbsp;
-          <span style={{ ...styles.footerDot, background: "#00ff88" }} /> OTHERS
+          <span style={{ ...styles.footerDot, background: isLI ? "#7fc15e" : "#00ff88", boxShadow: isLI ? "none" : "0 0 6px currentColor" }} /> {c.footerOthers}
         </div>
-        <div style={styles.footerMid}>ACTIVE USERS IN LAST 10 MINUTES</div>
-        <button style={styles.logoutBtn} onClick={handleLogout}>
-          LOG OUT
+        <div style={styles.footerMid}>{c.footerMid}</div>
+        <button style={{
+          ...styles.logoutBtn,
+          background: isLI ? "transparent" : "transparent",
+          border: isLI ? "1px solid #dce6ef" : "1px solid #00ff8855",
+          color: isLI ? "#666" : "#00ff88",
+          borderRadius: isLI ? "20px" : "0",
+          fontFamily: isLI ? LI_FONT : undefined,
+        }} onClick={handleLogout}>
+          {c.logoutBtn}
         </button>
       </div>
     </div>
@@ -896,6 +1274,108 @@ const styles: Record<string, CSSProperties> = {
     letterSpacing: "0.15em",
     color: "#ff3355",
     cursor: "pointer",
+  },
+  linkedInOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,119,181,0.12)",
+    backdropFilter: "blur(6px)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2000,
+    cursor: "pointer",
+  },
+  linkedInCard: {
+    background: "#ffffff",
+    borderRadius: "16px",
+    padding: "48px 40px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "14px",
+    maxWidth: "480px",
+    width: "90%",
+    boxShadow: "0 24px 64px rgba(0,0,0,0.2)",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    position: "relative",
+    zIndex: 1,
+    animation: "linkedInPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)",
+    cursor: "default",
+  },
+  linkedInCardEmoji: {
+    fontSize: "60px",
+    lineHeight: 1,
+  },
+  linkedInCardTitle: {
+    fontSize: "26px",
+    fontWeight: 800,
+    color: "#1a1a1a",
+    letterSpacing: "-0.02em",
+    textAlign: "center",
+  },
+  linkedInCardFrom: {
+    fontSize: "14px",
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 1.5,
+  },
+  linkedInCardMessage: {
+    fontSize: "18px",
+    color: "#1a1a1a",
+    textAlign: "center",
+    lineHeight: 1.6,
+    fontStyle: "italic",
+    background: "#f3f6f8",
+    borderRadius: "8px",
+    padding: "16px 20px",
+    width: "100%",
+  },
+  linkedInCardBtn: {
+    marginTop: "6px",
+    background: "#0077b5",
+    border: "none",
+    borderRadius: "24px",
+    color: "#ffffff",
+    padding: "13px 36px",
+    fontSize: "15px",
+    fontWeight: 700,
+    cursor: "pointer",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    letterSpacing: "0.02em",
+    animation: "linkedInPulse 2s 0.5s infinite",
+  },
+  modeToggle: {
+    display: "flex",
+    gap: "4px",
+  },
+  modeBtn: {
+    background: "transparent",
+    border: "1px solid transparent",
+    fontSize: "10px",
+    letterSpacing: "0.12em",
+    padding: "4px 10px",
+    cursor: "pointer",
+    fontFamily: "'Share Tech Mono', monospace",
+    transition: "all 0.2s",
+  },
+  modeBtnActive: {
+    border: "1px solid #00ff8866",
+    color: "#00ff88",
+    boxShadow: "0 0 10px #00ff8833",
+  },
+  modeBtnActiveLinkedIn: {
+    border: "1px solid #0077b5aa",
+    color: "#0ea5e9",
+    boxShadow: "0 0 10px #0077b533",
+  },
+  modeBtnInactive: {
+    border: "1px solid #ffffff11",
+    color: "#ffffff22",
+  },
+  modeBtnInactiveLI: {
+    border: "1px solid #dce6ef",
+    color: "#a0b4c8",
   },
   loginRoot: {
     minHeight: "100vh",
