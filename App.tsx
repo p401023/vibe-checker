@@ -983,7 +983,7 @@ export default function App(): JSX.Element {
 
 const styles: Record<string, CSSProperties> = {
   root: {
-    minHeight: "100vh",
+    height: "100vh",
     background: "#050e05",
     color: "#00ff88",
     fontFamily: "'Share Tech Mono', 'Courier New', monospace",
@@ -1162,6 +1162,8 @@ const styles: Record<string, CSSProperties> = {
     paddingLeft: "12px",
     display: "flex",
     flexDirection: "column",
+    minHeight: 0,
+    overflow: "hidden",
   },
   sidebarTitle: {
     fontSize: "11px",
@@ -1215,6 +1217,10 @@ const styles: Record<string, CSSProperties> = {
     fontSize: "10px",
     color: "#00ff8888",
     letterSpacing: "0.05em",
+    display: "block",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
   footer: {
     display: "flex",
