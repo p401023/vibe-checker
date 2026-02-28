@@ -1,7 +1,5 @@
 // Calls Turso via its HTTP API — no native binaries, works on any platform
-
-const dbUrl = process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://");
-const dbToken = process.env.TURSO_AUTH_TOKEN!;
+// Env vars are read lazily inside execute() so dotenv has time to load first
 
 type SqlArg = string | number | null;
 type TursoValue = { type: "text"; value: string } | { type: "integer"; value: string } | { type: "real"; value: string } | { type: "null" } | { type: "blob"; base64: string };
@@ -16,6 +14,9 @@ function unwrap(v: TursoValue): string | number | null {
 }
 
 async function execute(sql: string, args: SqlArg[] = []): Promise<TursoRow[]> {
+  const dbUrl = process.env.TURSO_DATABASE_URL!.replace(/^libsql:\/\//, "https://");
+  const dbToken = process.env.TURSO_AUTH_TOKEN!;
+
   const typedArgs = args.map((v) => {
     if (v === null) return { type: "null" };
     if (typeof v === "number") return { type: "integer", value: String(v) };

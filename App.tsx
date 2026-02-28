@@ -75,6 +75,7 @@ function playGunshot(): void {
   audio.play();
 }
 
+
 async function post(path: string, body: object) {
   return fetch(path, {
     method: "POST",
@@ -174,8 +175,26 @@ export default function App(): JSX.Element {
   const [nameInput, setNameInput] = useState<string>("");
   const [myVibe, setMyVibe] = useState<QuadrantKey | null>(null);
   const [users, setUsers] = useState<UsersMap>({});
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; id: string; name: string } | null>(null);
+  const [messageTarget, setMessageTarget] = useState<{ id: string; name: string } | null>(null);
+  const [messageInput, setMessageInput] = useState<string>("");
+  const [incomingMessage, setIncomingMessage] = useState<{ fromName: string; text: string } | null>(null);
 
   const userId = useRef<string>(getOrCreateUserId());
+  const sirenRef = useRef<HTMLAudioElement | null>(null);
+
+  // Unlock siren audio on the first user click so it can play from Pusher events later
+  useEffect(() => {
+    const unlock = () => {
+      const audio = new Audio("/siren.mp3");
+      audio.loop = true;
+      audio.play().then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+      sirenRef.current = audio;
+      window.removeEventListener("click", unlock);
+    };
+    window.addEventListener("click", unlock);
+    return () => window.removeEventListener("click", unlock);
+  }, []);
 
   const fetchUsers = (): void => {
     fetch("/api/users")
@@ -225,6 +244,15 @@ export default function App(): JSX.Element {
       });
     });
 
+    channel.bind("user-message", (data: { toId: string; fromName: string; text: string }) => {
+      if (data.toId !== userId.current) return;
+      if (sirenRef.current) {
+        sirenRef.current.currentTime = 0;
+        sirenRef.current.play().catch(console.error);
+      }
+      setIncomingMessage({ fromName: data.fromName, text: data.text });
+    });
+
     return () => {
       clearInterval(pollInterval);
       pusherClient.unsubscribe("vibe-checker");
@@ -239,6 +267,52 @@ export default function App(): JSX.Element {
     }, HEARTBEAT_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [userName]);
+
+  useEffect(() => {
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
+
+  const handleContextMenu = (e: React.MouseEvent, id: string, name: string): void => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, id, name });
+  };
+
+  const handleMessageUser = (id: string, name: string): void => {
+    setContextMenu(null);
+    setMessageInput("");
+    setMessageTarget({ id, name });
+  };
+
+  const sendMessage = async (): Promise<void> => {
+    if (!messageTarget || !messageInput.trim()) return;
+    await post("/api/message", { toId: messageTarget.id, fromName: userName, text: messageInput.trim() });
+    setMessageTarget(null);
+    setMessageInput("");
+  };
+
+  const dismissMessage = (): void => {
+    if (sirenRef.current) {
+      sirenRef.current.pause();
+      sirenRef.current.currentTime = 0;
+    }
+    setIncomingMessage(null);
+  };
+
+  const handleForceLogout = async (id: string): Promise<void> => {
+    await post("/api/leave", { id });
+    setUsers((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    if (id === userId.current) {
+      sessionStorage.clear();
+      window.location.reload();
+    }
+    setContextMenu(null);
+  };
 
   const handleJoin = (): void => {
     const name = nameInput.trim();
@@ -329,7 +403,11 @@ export default function App(): JSX.Element {
           <div style={styles.sidebarCount}>{activeCount} online</div>
           <div style={styles.userList}>
             {Object.entries(users).map(([id, u]) => (
-              <div key={id} style={styles.userItem}>
+              <div
+                key={id}
+                style={styles.userItem}
+                onContextMenu={(e) => handleContextMenu(e, id, u.name)}
+              >
                 <span
                   style={{
                     ...styles.userDot,
@@ -349,6 +427,55 @@ export default function App(): JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          style={{ ...styles.contextMenu, left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div style={styles.contextMenuUser}>{contextMenu.name}</div>
+          {contextMenu.id !== userId.current && (
+            <div style={styles.contextMenuItem} onClick={() => handleMessageUser(contextMenu.id, contextMenu.name)}>
+              MESSAGE USER
+            </div>
+          )}
+          <div style={{ ...styles.contextMenuItem, color: "#ff3355" }} onClick={() => handleForceLogout(contextMenu.id)}>
+            REMOVE USER
+          </div>
+        </div>
+      )}
+
+      {/* Message compose dialog */}
+      {messageTarget && (
+        <div style={styles.dialogOverlay} onClick={() => setMessageTarget(null)}>
+          <div style={styles.dialogBox} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.dialogTitle}>MESSAGE → {messageTarget.name.toUpperCase()}</div>
+            <input
+              style={styles.dialogInput}
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && sendMessage()}
+              placeholder="TYPE MESSAGE..."
+              autoFocus
+              maxLength={80}
+            />
+            <div style={styles.dialogButtons}>
+              <button style={styles.dialogSend} onClick={sendMessage}>SEND</button>
+              <button style={styles.dialogCancel} onClick={() => setMessageTarget(null)}>CANCEL</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming message overlay */}
+      {incomingMessage && (
+        <div style={styles.messageOverlay} onClick={dismissMessage}>
+          <div style={styles.messageFrom}>⚠ MESSAGE FROM {incomingMessage.fromName.toUpperCase()} ⚠</div>
+          <div style={styles.messageText}>{incomingMessage.text.toUpperCase()}</div>
+          <div style={styles.messageDismiss}>CLICK ANYWHERE TO ACKNOWLEDGE</div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={styles.footer}>
@@ -624,6 +751,125 @@ const styles: Record<string, CSSProperties> = {
     cursor: "pointer",
     fontFamily: "inherit",
     transition: "all 0.2s",
+  },
+  dialogOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.75)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  },
+  dialogBox: {
+    background: "#050e05",
+    border: "1px solid #00ff4466",
+    boxShadow: "0 0 40px #00ff4422",
+    padding: "32px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+    minWidth: "360px",
+    fontFamily: "'Share Tech Mono', monospace",
+  },
+  dialogTitle: {
+    fontSize: "12px",
+    letterSpacing: "0.2em",
+    color: "#00ff8888",
+  },
+  dialogInput: {
+    background: "transparent",
+    border: "none",
+    borderBottom: "1px solid #00ff8855",
+    color: "#00ff88",
+    fontSize: "16px",
+    fontFamily: "inherit",
+    padding: "8px 4px",
+    outline: "none",
+    letterSpacing: "0.1em",
+  },
+  dialogButtons: {
+    display: "flex",
+    gap: "12px",
+  },
+  dialogSend: {
+    background: "transparent",
+    border: "1px solid #00ff88",
+    color: "#00ff88",
+    padding: "8px 24px",
+    fontSize: "12px",
+    letterSpacing: "0.2em",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  dialogCancel: {
+    background: "transparent",
+    border: "1px solid #ffffff22",
+    color: "#ffffff44",
+    padding: "8px 24px",
+    fontSize: "12px",
+    letterSpacing: "0.2em",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  messageOverlay: {
+    position: "fixed",
+    inset: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2000,
+    cursor: "pointer",
+    animation: "shake 0.5s ease-in-out infinite, flashBg 0.6s step-start infinite",
+    padding: "40px",
+    gap: "32px",
+  },
+  messageFrom: {
+    fontSize: "clamp(14px, 2vw, 20px)",
+    letterSpacing: "0.3em",
+    color: "#ff6666",
+    fontFamily: "'Share Tech Mono', monospace",
+  },
+  messageText: {
+    fontSize: "clamp(32px, 7vw, 90px)",
+    fontWeight: 900,
+    letterSpacing: "0.06em",
+    textAlign: "center",
+    fontFamily: "'Share Tech Mono', monospace",
+    color: "#ff0000",
+    animation: "flashText 0.5s step-start infinite",
+    lineHeight: 1.1,
+    wordBreak: "break-word",
+  },
+  messageDismiss: {
+    fontSize: "12px",
+    letterSpacing: "0.25em",
+    color: "#ffffff55",
+    fontFamily: "'Share Tech Mono', monospace",
+  },
+  contextMenu: {
+    position: "fixed",
+    background: "#050e05",
+    border: "1px solid #00ff4444",
+    boxShadow: "0 0 20px #00ff4422",
+    zIndex: 999,
+    minWidth: "150px",
+    fontFamily: "'Share Tech Mono', monospace",
+  },
+  contextMenuUser: {
+    padding: "7px 12px",
+    fontSize: "10px",
+    letterSpacing: "0.2em",
+    color: "#00ff8855",
+    borderBottom: "1px solid #00ff4422",
+  },
+  contextMenuItem: {
+    padding: "10px 12px",
+    fontSize: "11px",
+    letterSpacing: "0.15em",
+    color: "#ff3355",
+    cursor: "pointer",
   },
   loginRoot: {
     minHeight: "100vh",

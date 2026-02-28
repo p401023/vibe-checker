@@ -61,6 +61,18 @@ app.post("/api/leave", async (req, res) => {
   }
 });
 
+app.post("/api/message", async (req, res) => {
+  try {
+    const { toId, fromName, text } = req.body;
+    if (!toId || !fromName || !text) { res.status(400).json({ error: "toId, fromName, text required" }); return; }
+    await pusher.trigger("vibe-checker", "user-message", { toId, fromName, text });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error("[api] POST /api/message error:", e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 app.post("/api/heartbeat", async (req, res) => {
   try {
     const { id } = req.body;
